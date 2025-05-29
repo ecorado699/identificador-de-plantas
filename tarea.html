@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Análisis Inteligente de Cosechas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Base styles for the body, setting font and background color */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0fdf4; /* Light green background */
+        }
+        /* Card styling for content sections */
+        .card {
+            background-color: white;
+            border-radius: 0.75rem; /* 12px */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            padding: 1.5rem; /* 24px */
+            margin-bottom: 1.5rem;
+        }
+        /* Base button styling */
+        .btn {
+            font-weight: 600;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem; /* 8px */
+            transition: background-color 0.3s ease;
+            cursor: pointer;
+        }
+        /* Primary button specific styling (green) */
+        .btn-primary {
+            background-color: #22c55e; /* Green-500 */
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #16a34a; /* Green-600 */
+        }
+        /* Secondary button specific styling (gray) */
+        .btn-secondary {
+            background-color: #6b7280; /* Gray-500 */
+            color: white;
+        }
+        .btn-secondary:hover {
+            background-color: #4b5563; /* Gray-600 */
+        }
+        /* Danger button specific styling (red) */
+        .btn-danger {
+            background-color: #ef4444; /* Red-500 */
+            color: white;
+        }
+        .btn-danger:hover {
+            background-color: #dc2626; /* Red-600 */
+        }
+        /* Spinner animation for loading states */
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #22c55e; /* Green-500 */
+            animation: spin 1s ease infinite;
+        }
+        /* Keyframe animation for the spinner */
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Grid layout for displaying analysis results */
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem; /* Increased gap */
+        }
+        /* Styling for individual result items within the grid */
+        .result-item {
+            background-color: #f9fafb; /* Gray-50 */
+            padding: 1.25rem; /* Increased padding */
+            border-radius: 0.5rem;
+            border: 1px solid #e5e7eb; /* Gray-200 */
+        }
+        /* Heading styling for result items, including SVG icon alignment */
+        .result-item h3 {
+            color: #16a34a; /* Green-600 */
+            font-weight: 600;
+            margin-bottom: 0.75rem; /* Increased margin */
+            display: flex;
+            align-items: center;
+        }
+        .result-item h3 svg {
+            margin-right: 0.5rem;
+        }
+        /* List styling within result items */
+        .result-item ul {
+            list-style-type: disc;
+            padding-left: 1.5rem;
+            color: #374151; /* Gray-700 */
+        }
+        /* Styling for the image preview container */
+        #imagePreviewContainer {
+            border: 2px dashed #d1d5db; /* Gray-300 */
+            padding: 0.5rem;
+            margin-bottom: 1rem;
+            min-height: 200px; /* Ensure container has some height */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #f9fafb;
+        }
+        /* Styling for the actual image preview */
+        #imagePreview {
+            max-height: 400px;
+            width: auto;
+            max-width: 100%;
+            border-radius: 0.5rem;
+            object-fit: contain;
+        }
+        /* Custom label styling for the file input, making it look like a button */
+        .file-input-label {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            background-color: #3b82f6; /* Blue-500 */
+            color: white;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            text-align: center;
+        }
+        .file-input-label:hover {
+            background-color: #2563eb; /* Blue-600 */
+        }
+        /* Hiding the default file input */
+        #imageUpload {
+            display: none;
+        }
+        /* Modal overlay styling */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.6); /* Darker overlay */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 1rem;
+        }
+        /* Modal content styling */
+        .modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 0.75rem; /* More rounded */
+            text-align: center;
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+        }
+        /* Video feed styling for camera input */
+        #videoFeed {
+            width: 100%;
+            max-width: 500px;
+            height: auto;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            border: 1px solid #ccc;
+        }
+        /* Camera controls button spacing */
+        .camera-controls button {
+            margin: 0 0.5rem;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4">
+
+    <div class="w-full max-w-4xl">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-green-700">Análisis Inteligente de Cosechas</h1>
+            <p class="text-lg text-gray-600 mt-2">Cargue o tome una foto de su cosecha para un análisis detallado.</p>
+        </header>
+
+        <div class="card">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-6">1. Cargar o Capturar Imagen</h2>
+            <div class="flex flex-col items-center">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6 w-full max-w-md">
+                    <label for="imageUpload" class="file-input-label btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block mr-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                        Seleccionar Archivo
+                    </label>
+                    <input type="file" id="imageUpload" accept="image/*">
+                    <button id="openCameraButton" class="btn btn-primary">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block mr-2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                        Tomar Foto
+                    </button>
+                </div>
+
+                <div id="imagePreviewContainer">
+                    <img id="imagePreview" src="https://placehold.co/600x400/e2e8f0/94a3b8?text=Vista+Previa+de+Imagen" alt="Vista previa de la imagen">
+                </div>
+                
+                <div id="cameraView" class="hidden w-full max-w-md flex flex-col items-center mt-4">
+                    <video id="videoFeed" autoplay playsinline></video>
+                    <div class="camera-controls flex justify-center mt-2 mb-4">
+                        <button id="capturePhotoButton" class="btn btn-primary">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block mr-2"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle></svg>
+                            Capturar
+                        </button>
+                        <button id="cancelCameraButton" class="btn btn-danger">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block mr-2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                            Cancelar
+                        </button>
+                    </div>
+                </div>
+                <button id="analyzeButton" class="btn btn-primary mt-4" disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block mr-2"><path d="M17.605 17.605C19.203 15.998 20 13.803 20 11.5c0-2.303-.797-4.498-2.395-6.105C16.002 3.797 13.803 3 11.5 3S6.998 3.797 5.395 5.395C3.797 6.998 3 9.197 3 11.5s.797 4.498 2.395 6.105C6.998 19.203 9.197 20 11.5 20c2.303 0 4.498-.797 6.105-2.395z"></path><path d="M11.5 7v9"></path><path d="M8.5 10h6"></path></svg>
+                    Analizar Cosecha
+                </button>
+            </div>
+        </div>
+
+        <div id="loadingIndicator" class="hidden flex justify-center items-center my-8">
+            <div class="spinner"></div>
+            <p class="ml-3 text-gray-600">Analizando imagen, por favor espere...</p>
+        </div>
+        
+        <div id="errorMessage" class="hidden card bg-red-100 border-l-4 border-red-500 text-red-700 p-4" role="alert">
+            <p class="font-bold">Error</p>
+            <p id="errorMessageText"></p>
+        </div>
+
+        <div id="resultsCard" class="card hidden">
+            <h2 class="text-2xl font-semibold text-gray-700 mb-6">2. Resultados del Análisis</h2>
+            <div class="results-grid">
+                <div class="result-item">
+                    <h3><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 18.572C10.024 18.846 9.019 19 8 19c-2.761 0-5-1.79-5-4s2.239-4 5-4c.794 0 1.538.125 2.212.35M13 18.572C13.976 18.846 14.981 19 16 19c2.761 0 5-1.79 5-4s-2.239-4-5-4c-.794 0-1.538.125-2.212.35M12 15V3M12 3l3 3M12 3L9 3"></path></svg>Tipo de Cosecha</h3>
+                    <p id="cropType" class="text-gray-800">-</p>
+                </div>
+                <div class="result-item">
+                    <h3><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"></path></svg>Nivel de Maduración</h3>
+                    <p id="ripenessLevel" class="text-gray-800">-</p>
+                </div>
+                <div class="result-item">
+                    <h3><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>Enfermedades Detectadas</h3>
+                    <p id="diseasesDetected" class="text-gray-800">-</p>
+                </div>
+                <div class="result-item">
+                    <h3><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.94 11c.46-4.17-2.53-7.9-6.7-8.36-4.17-.46-7.9 2.53-8.36 6.7C5.42 13.58 6.9 17.08 9.5 18.62M12 22v-3m0 0V7.5C12 5 10 3 7.5 3S3 5 3 7.5V19"></path><path d="M15 22v-3m0 0V7.5C15 5 17 3 19.5 3S21 5 21 7.5V19"></path></svg>Necesidades Nutricionales</h3>
+                    <p id="nutritionalNeeds" class="text-gray-800">-</p>
+                </div>
+                <div class="result-item">
+                    <h3><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>Fecha Tentativa de Cosecha</h3>
+                    <p id="harvestDate" class="text-gray-800">-</p>
+                </div>
+                <div class="result-item">
+                    <h3><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>Tiempo de Siembra Estimado</h3>
+                    <p id="sowingTime" class="text-gray-800">-</p>
+                </div>
+                   <div class="result-item md:col-span-2">
+                    <h3>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c4.97 0 9-4.03 9-9s-4.03-9-9-9-9 4.03-9 9 4.03 9 9 9z"></path><path d="M12 3v1c0 2.48-2.02 4.5-4.5 4.5H3"></path><path d="M12 21v-1c0-2.48 2.02-4.5 4.5-4.5H21"></path><path d="M3 12h1c2.48 0 4.5 2.02 4.5 4.5V21"></path><path d="M21 12h-1c-2.48 0-4.5-2.02-4.5-4.5V3"></path></svg>
+                        Cuidados Recomendados para la Planta
+                    </h3>
+                    <div id="plantCareInstructions" class="text-gray-800">-</div>
+                </div>
+            </div>
+        </div>
+        
+        <footer class="text-center mt-12 mb-4">
+            <p class="text-sm text-gray-500">&copy; <span id="currentYear"></span> AgroInteligencia Avanzada. Todos los derechos reservados.</p>
+        </footer>
+    </div>
+
+    <script>
+        // Get references to DOM elements
+        const imageUpload = document.getElementById('imageUpload');
+        const imagePreview = document.getElementById('imagePreview');
+        const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+        const analyzeButton = document.getElementById('analyzeButton');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const resultsCard = document.getElementById('resultsCard');
+        const errorMessage = document.getElementById('errorMessage');
+        const errorMessageText = document.getElementById('errorMessageText');
+        
+        const openCameraButton = document.getElementById('openCameraButton');
+        const cameraView = document.getElementById('cameraView');
+        const videoFeed = document.getElementById('videoFeed');
+        const capturePhotoButton = document.getElementById('capturePhotoButton');
+        const cancelCameraButton = document.getElementById('cancelCameraButton');
+        let currentStream = null; // To hold the camera stream
+
+        // Result fields for displaying analysis data
+        const cropTypeEl = document.getElementById('cropType');
+        const ripenessLevelEl = document.getElementById('ripenessLevel');
+        const diseasesDetectedEl = document.getElementById('diseasesDetected');
+        const nutritionalNeedsEl = document.getElementById('nutritionalNeeds');
+        const harvestDateEl = document.getElementById('harvestDate');
+        const sowingTimeEl = document.getElementById('sowingTime');
+        const plantCareInstructionsEl = document.getElementById('plantCareInstructions');
+
+        // Set the current year in the footer
+        document.getElementById('currentYear').textContent = new Date().getFullYear();
+
+        let base64ImageData = null; // Stores the base64 encoded image data
+        // Directly integrate the provided API Key
+        const apiKey = "AIzaSyCfNtpStN8b1FBqJXib3gM299ea2aM6uxU";
+
+        /**
+         * Stops the active camera stream if any, and hides the camera view.
+         */
+        function stopCameraStream() {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null;
+            }
+            videoFeed.srcObject = null;
+            cameraView.classList.add('hidden');
+        }
+
+        // Event listener for opening the camera
+        openCameraButton.addEventListener('click', async () => {
+            // Check if camera API is supported by the browser
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                showError("La API de cámara no es soportada por este navegador.");
+                return;
+            }
+            try {
+                stopCameraStream(); // Stop any existing stream before starting a new one
+                // Request access to the user's camera, preferring the environment-facing camera
+                currentStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+                videoFeed.srcObject = currentStream;
+                cameraView.classList.remove('hidden'); // Show the camera view
+                imagePreviewContainer.classList.add('hidden'); // Hide image preview when camera is active
+                resultsCard.classList.add('hidden'); // Hide previous results
+                errorMessage.classList.add('hidden'); // Hide any previous error messages
+            } catch (err) {
+                console.error("Error al acceder a la cámara: ", err);
+                showError(`Error al acceder a la cámara: ${err.name} - ${err.message}. Asegúrese de otorgar permisos.`);
+                stopCameraStream(); // Stop stream on error
+            }
+        });
+
+        // Event listener for canceling camera view
+        cancelCameraButton.addEventListener('click', () => {
+            stopCameraStream(); // Stop the camera stream
+            imagePreviewContainer.classList.remove('hidden'); // Show image preview again
+        });
+
+        // Event listener for capturing photo from camera feed
+        capturePhotoButton.addEventListener('click', () => {
+            // Ensure camera is active and ready
+            if (!currentStream || !videoFeed.videoWidth) {
+                showError("La cámara no está activa o lista.");
+                return;
+            }
+            // Create a canvas element to draw the video frame
+            const canvas = document.createElement('canvas');
+            canvas.width = videoFeed.videoWidth;
+            canvas.height = videoFeed.videoHeight;
+            const context = canvas.getContext('2d');
+            // Draw the current frame of the video onto the canvas
+            context.drawImage(videoFeed, 0, 0, canvas.width, canvas.height);
+            
+            // Get the image data as a JPEG base64 string
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.9); // Use JPEG with quality
+            imagePreview.src = dataUrl; // Display the captured image in the preview
+            base64ImageData = dataUrl.split(',')[1]; // Extract base64 data
+
+            analyzeButton.disabled = false; // Enable the analyze button
+            resultsCard.classList.add('hidden'); // Hide previous results
+            errorMessage.classList.add('hidden'); // Hide any previous error messages
+            
+            stopCameraStream(); // Stop the camera stream after capturing
+            imagePreviewContainer.classList.remove('hidden'); // Show image preview with captured photo
+        });
+
+        // Event listener for image file upload
+        imageUpload.addEventListener('change', (event) => {
+            stopCameraStream(); // Ensure camera is off if user chooses file
+            imagePreviewContainer.classList.remove('hidden'); // Show image preview
+            const file = event.target.files[0]; // Get the selected file
+            if (file) {
+                const reader = new FileReader(); // Create a FileReader to read the file
+                reader.onload = (e) => {
+                    imagePreview.src = e.target.result; // Display the selected image in the preview
+                    base64ImageData = e.target.result.split(',')[1]; // Extract base64 data
+                    analyzeButton.disabled = false; // Enable the analyze button
+                    resultsCard.classList.add('hidden'); // Hide previous results
+                    errorMessage.classList.add('hidden'); // Hide any previous error messages
+                }
+                reader.readAsDataURL(file); // Read the file as a data URL
+            } else {
+                // Reset preview if no file is selected
+                imagePreview.src = 'https://placehold.co/600x400/e2e8f0/94a3b8?text=Vista+Previa+de+Imagen';
+                base64ImageData = null;
+                analyzeButton.disabled = true;
+            }
+        });
+
+        // Event listener for the analyze button
+        analyzeButton.addEventListener('click', async () => {
+            if (!base64ImageData) {
+                showError("Por favor, cargue o capture una imagen primero.");
+                return;
+            }
+
+            loadingIndicator.classList.remove('hidden'); // Show loading indicator
+            resultsCard.classList.add('hidden'); // Hide results card
+            errorMessage.classList.add('hidden'); // Hide error message
+            resetResultFields(); // Clear previous results
+
+            // Define the prompt for the AI model
+            const prompt = `Eres un sistema experto en agronomía y análisis de cultivos. Analiza la siguiente imagen de una cosecha. Proporciona la información en formato JSON según el esquema definido.
+            Debes identificar:
+            1.  "tipoCosecha": El tipo específico de planta o fruto (ej: Tomate variedad Roma, Maíz dulce, Fresa Albion).
+            2.  "nivelMaduracion": El estado de madurez (ej: Verde, Envero, Maduro, Sobremaduro, Listo para cosecha).
+            3.  "enfermedadesDetectadas": Lista de posibles enfermedades o plagas visibles (máximo 3), o "Ninguna detectada aparentemente". Describe brevemente el síntoma si es posible.
+            4.  "necesidadesNutricionales": Sugerencias de nutrientes que podrían ser deficientes o necesarios basados en la apariencia (máximo 3 sugerencias), o "Aparentemente bien nutrido".
+            5.  "fechaTentativaCosecha": Una estimación de cuándo podría cosecharse (ej: "En 1-2 semanas", "Aproximadamente el 15 de Julio", "Ya está en su punto").
+            6.  "tiempoSiembraEstimado": Una estimación del tiempo transcurrido desde la siembra (ej: "Aproximadamente 70 días desde siembra", "Plantado a inicios de primavera").
+            7.  "cuidadosPlanta": Una lista de 3 a 5 consejos de cuidado esenciales y prácticos para el tipo de cosecha identificado (ej: riego, luz solar, tipo de suelo, fertilización básica, poda si aplica). Si el tipo de cosecha no es claro, indica "No se pueden dar cuidados específicos sin identificar claramente la cosecha."
+
+            Si alguna información no es claramente discernible de la imagen, indícalo explícitamente como "No discernible en la imagen" o una frase similar para ese campo. Sé lo más específico posible basado en la imagen.`;
+            
+            // Construct the payload for the API request
+            const payload = {
+                contents: [
+                    {
+                        role: "user",
+                        parts: [
+                            { text: prompt },
+                            {
+                                inlineData: {
+                                    mimeType: "image/jpeg", // Consistent with canvas.toDataURL('image/jpeg')
+                                    data: base64ImageData
+                                }
+                            }
+                        ]
+                    }
+                ],
+                generationConfig: {
+                    responseMimeType: "application/json", // Request JSON response
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            "tipoCosecha": { "type": "STRING", "description": "Ej: Tomate, Maíz, Fresa" },
+                            "nivelMaduracion": { "type": "STRING", "description": "Ej: Verde, Pintón, Maduro, Pasado" },
+                            "enfermedadesDetectadas": {
+                                "type": "ARRAY",
+                                "items": { "type": "STRING" },
+                                "description": "Lista de posibles enfermedades o 'Ninguna detectada'"
+                            },
+                            "necesidadesNutricionales": {
+                                "type": "ARRAY",
+                                "items": { "type": "STRING" },
+                                "description": "Lista de nutrientes necesarios o 'Niveles óptimos'"
+                            },
+                            "fechaTentativaCosecha": { "type": "STRING", "description": "Ej: 'En 2 semanas', '15/07/2025'" },
+                            "tiempoSiembraEstimado": { "type": "STRING", "description": "Ej: 'Hace 60 días', 'Principios de Marzo'" },
+                            "cuidadosPlanta": {
+                                "type": "ARRAY",
+                                "items": { "type": "STRING" },
+                                "description": "Lista de consejos de cuidado para la planta."
+                            }
+                        },
+                        required: ["tipoCosecha", "nivelMaduracion", "enfermedadesDetectadas", "necesidadesNutricionales", "fechaTentativaCosecha", "tiempoSiembraEstimado", "cuidadosPlanta"]
+                    }
+                }
+            };
+            
+            // API endpoint for Gemini-2.0-Flash model
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+            
+            try {
+                // Make the API call
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                // Handle non-OK responses (e.g., HTTP errors)
+                if (!response.ok) {
+                    const errorBody = await response.json();
+                    console.error("Error response from API:", errorBody);
+                    let errorMsg = `Error ${response.status}: ${response.statusText}. `;
+                    if (errorBody && errorBody.error && errorBody.error.message) {
+                        errorMsg += errorBody.error.message;
+                    }
+                    throw new Error(errorMsg);
+                }
+
+                const result = await response.json();
+
+                // Check if the response contains valid content
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    
+                    const jsonText = result.candidates[0].content.parts[0].text;
+                    const parsedJson = JSON.parse(jsonText); // Parse the JSON response
+                    displayResults(parsedJson); // Display the results
+                } else {
+                    console.error("Respuesta inesperada de la API:", result);
+                    throw new Error("No se pudo obtener un análisis válido de la API. La estructura de la respuesta no es la esperada.");
+                }
+
+            } catch (error) {
+                console.error('Error al analizar la imagen:', error);
+                showError(`Hubo un problema al procesar el análisis: ${error.message}`);
+            } finally {
+                loadingIndicator.classList.add('hidden'); // Hide loading indicator regardless of success or failure
+            }
+        });
+
+        /**
+         * Displays the analysis results in the respective HTML elements.
+         * @param {Object} data - The parsed JSON data from the API response.
+         */
+        function displayResults(data) {
+            cropTypeEl.textContent = data.tipoCosecha || 'No especificado';
+            ripenessLevelEl.textContent = data.nivelMaduracion || 'No especificado';
+            
+            // Join array elements for display, or show a default message
+            diseasesDetectedEl.textContent = (data.enfermedadesDetectadas && data.enfermedadesDetectadas.length > 0) 
+                ? data.enfermedadesDetectadas.join('; ') 
+                : 'Ninguna detectada aparentemente o no especificado';
+            
+            nutritionalNeedsEl.textContent = (data.necesidadesNutricionales && data.necesidadesNutricionales.length > 0)
+                ? data.necesidadesNutricionales.join('; ')
+                : 'Aparentemente bien nutrido o no especificado';
+            
+            harvestDateEl.textContent = data.fechaTentativaCosecha || 'No especificado';
+            sowingTimeEl.textContent = data.tiempoSiembraEstimado || 'No especificado';
+
+            plantCareInstructionsEl.innerHTML = ''; // Clear previous instructions
+            if (data.cuidadosPlanta && data.cuidadosPlanta.length > 0) {
+                const ul = document.createElement('ul');
+                data.cuidadosPlanta.forEach(tip => {
+                    const li = document.createElement('li');
+                    li.textContent = tip;
+                    ul.appendChild(li);
+                });
+                plantCareInstructionsEl.appendChild(ul);
+            } else {
+                plantCareInstructionsEl.textContent = 'No se proporcionaron cuidados específicos o no se pudo identificar la planta.';
+            }
+
+            resultsCard.classList.remove('hidden'); // Show the results card
+        }
+
+        /**
+         * Resets all result display fields to their default empty state.
+         */
+        function resetResultFields() {
+            cropTypeEl.textContent = '-';
+            ripenessLevelEl.textContent = '-';
+            diseasesDetectedEl.textContent = '-';
+            nutritionalNeedsEl.textContent = '-';
+            harvestDateEl.textContent = '-';
+            sowingTimeEl.textContent = '-';
+            plantCareInstructionsEl.textContent = '-';
+        }
+        
+        /**
+         * Displays an error message to the user.
+         * @param {string} message - The error message to display.
+         */
+        function showError(message) {
+            errorMessageText.textContent = message;
+            errorMessage.classList.remove('hidden');
+        }
+
+        // Fallback for image preview in case of loading error
+        imagePreview.onerror = function() {
+            this.src = 'https://placehold.co/600x400/e2e8f0/94a3b8?text=Error+al+cargar+imagen';
+            analyzeButton.disabled = true;
+            base64ImageData = null;
+        };
+
+    </script>
+</body>
+</html>
